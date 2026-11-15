@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Люблю тебя ❤️</title>
+<title>Я люблю тебя ❤️</title>
 
 <style>
 * {
@@ -17,6 +17,7 @@ html, body {
     height: 100%;
     overflow: hidden;
     background: #000;
+    font-family: Arial, sans-serif;
 }
 
 canvas {
@@ -24,29 +25,54 @@ canvas {
     width: 100%;
     height: 100%;
 }
+
+#tapButton {
+    position: fixed;
+    left: 50%;
+    top: 78%;
+    transform: translate(-50%, -50%);
+    padding: 15px 45px;
+    border: 2px solid #ff1744;
+    border-radius: 40px;
+    background: #ff003c;
+    color: white;
+    font-size: 25px;
+    font-weight: bold;
+    box-shadow: 0 0 20px #ff1744;
+    cursor: pointer;
+    display: none;
+    z-index: 10;
+}
+
+#tapButton:active {
+    transform: translate(-50%, -50%) scale(0.92);
+}
 </style>
 </head>
 
 <body>
+
 <canvas id="canvas"></canvas>
+<button id="tapButton">Тык ❤️</button>
 
 <script>
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+const button = document.getElementById("tapButton");
 
 let w, h, scale;
 let points = [];
 
 const N = 500;
-const message = "Люблю тебя ❤️";
-
-let textIndex = 0;
-let phase = "outline";
-let progress = 0;
+let filling = false;
+let fillProgress = 0;
 let pulseStart = 0;
+
+const message = "Я люблю тебя❤️";
 
 function resize() {
     const dpr = window.devicePixelRatio || 1;
+
     w = window.innerWidth;
     h = window.innerHeight;
 
@@ -58,6 +84,7 @@ function resize() {
     scale = Math.min(w * 0.82 / 32, h * 0.48 / 30);
 
     createHeart();
+    drawStaticHeart();
 }
 
 function createHeart() {
@@ -67,6 +94,7 @@ function createHeart() {
         const t = Math.PI + 2 * Math.PI * i / N;
 
         const x = 16 * Math.sin(t) ** 3;
+
         const y =
             13 * Math.cos(t)
             - 5 * Math.cos(2 * t)
@@ -85,12 +113,7 @@ function clear() {
     ctx.fillRect(0, 0, w, h);
 }
 
-function drawHeart(fill = true, pulse = 1) {
-    ctx.save();
-    ctx.translate(w / 2, h / 2);
-    ctx.scale(pulse, pulse);
-    ctx.translate(-w / 2, -h / 2);
-
+function heartPath() {
     ctx.beginPath();
 
     points.forEach((p, i) => {
@@ -99,25 +122,9 @@ function drawHeart(fill = true, pulse = 1) {
     });
 
     ctx.closePath();
-
-    if (fill) {
-        ctx.fillStyle = "#ff003c";
-        ctx.shadowColor = "#ff1744";
-        ctx.shadowBlur = 28;
-        ctx.fill();
-    }
-
-    ctx.strokeStyle = "#ff1744";
-    ctx.lineWidth = 5;
-    ctx.lineJoin = "round";
-    ctx.shadowColor = "#ff1744";
-    ctx.shadowBlur = 22;
-    ctx.stroke();
-
-    ctx.restore();
 }
 
-function drawOutline(step = 0) {
+function drawOutline(step) {
     clear();
 
     ctx.beginPath();
@@ -132,8 +139,9 @@ function drawOutline(step = 0) {
     ctx.strokeStyle = "#ff1744";
     ctx.lineWidth = 5;
     ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     ctx.shadowColor = "#ff1744";
-    ctx.shadowBlur = 22;
+    ctx.shadowBlur = 25;
     ctx.stroke();
 
     if (step < N) {
@@ -141,39 +149,117 @@ function drawOutline(step = 0) {
             drawOutline(Math.min(step + 5, N));
         }, 5);
     } else {
-        setTimeout(() => fillHeart(0), 300);
+        button.style.display = "block";
     }
 }
 
-function fillHeart(value) {
+function drawStaticHeart() {
+    if (filling) return;
+
+    clear();
+    heartPath();
+
+    ctx.strokeStyle = "#ff1744";
+    ctx.lineWidth = 5;
+    ctx.shadowColor = "#ff1744";
+    ctx.shadowBlur = 25;
+    ctx.stroke();
+}
+
+function fillHeart() {
+    filling = true;
+    button.style.display = "none";
+    fillProgress = 0;
+
+    requestAnimationFrame(animateFill);
+}
+
+function animateFill() {
     clear();
 
-    drawHeart(true);
+    // Контур сердца
+    heartPath();
+
+    // Заливка жидкостью снизу вверх
+    ctx.save();
+
+    heartPath();
+    ctx.clip();
 
     const top = h / 2 - 17 * scale;
     const bottom = h / 2 + 17 * scale;
-    const reveal = bottom - (bottom - top) * value;
+    const level = bottom - (bottom - top) * fillProgress;
 
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, w, reveal);
+    // Небольшая волна на поверхности жидкости
+    const wave = Math.sin(performance.now() / 180) * 5;
 
-    drawHeart(false);
+    ctx.beginPath();
+    ctx.moveTo(0, level);
 
-    if (value < 1) {
-        setTimeout(() => {
-            fillHeart(Math.min(value + 0.025, 1));
-        }, 15);
+    for (let x = 0; x <= w; x += 5) {
+        const y = level + Math.sin(x / 25 + performance.now() / 180) * wave;
+        ctx.lineTo(x, y);
+    }
+
+    ctx.lineTo(w, h);
+    ctx.lineTo(0, h);
+    ctx.closePath();
+
+    const gradient = ctx.createLinearGradient(0, level, 0, bottom);
+    gradient.addColorStop(0, "#ff416c");
+    gradient.addColorStop(1, "#ff003c");
+
+    ctx.fillStyle = gradient;
+    ctx.shadowColor = "#ff1744";
+    ctx.shadowBlur = 25;
+    ctx.fill();
+
+    ctx.restore();
+
+    // Контур поверх заливки
+    heartPath();
+    ctx.strokeStyle = "#ff1744";
+    ctx.lineWidth = 5;
+    ctx.shadowColor = "#ff1744";
+    ctx.shadowBlur = 25;
+    ctx.stroke();
+
+    if (fillProgress < 1) {
+        fillProgress += 0.008;
+        requestAnimationFrame(animateFill);
     } else {
-        setTimeout(() => showText(0), 400);
+        pulseStart = performance.now();
+        requestAnimationFrame(pulse);
     }
 }
 
-function showText(index) {
+function pulse(now) {
     clear();
-    drawHeart(true);
 
-    const visibleText = message.slice(0, index);
-    const fontSize = Math.min(scale * 3.2, 48);
+    const t = (now - pulseStart) / 1000;
+    const size = 1 + Math.sin(t * 3) * 0.045;
+
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    ctx.scale(size, size);
+    ctx.translate(-w / 2, -h / 2);
+
+    heartPath();
+
+    ctx.fillStyle = "#ff003c";
+    ctx.shadowColor = "#ff1744";
+    ctx.shadowBlur = 28;
+    ctx.fill();
+
+    ctx.strokeStyle = "#ff1744";
+    ctx.lineWidth = 5;
+    ctx.shadowBlur = 22;
+    ctx.stroke();
+
+    ctx.restore();
+
+    // Неоновая надпись
+    const fontSize = Math.min(scale * 3.2, 42);
 
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -190,52 +276,38 @@ function showText(index) {
         ctx.shadowBlur = 20;
         ctx.shadowColor = color;
         ctx.fillStyle = color;
-        ctx.fillText(visibleText, w / 2, h / 2);
+        ctx.fillText(message, w / 2, h / 2);
     });
 
     ctx.shadowBlur = 14;
     ctx.shadowColor = "#00ccff";
     ctx.fillStyle = "#fff";
-    ctx.fillText(visibleText, w / 2, h / 2);
+    ctx.fillText(message, w / 2, h / 2);
 
     ctx.shadowBlur = 0;
-
-    if (index < message.length) {
-        setTimeout(() => showText(index + 1), 180);
-    } else {
-        pulseStart = performance.now();
-        requestAnimationFrame(pulse);
-    }
-}
-
-function pulse(now) {
-    clear();
-
-    const t = (now - pulseStart) / 1000;
-    const size = 1 + Math.sin(t * 3) * 0.045;
-
-    drawHeart(true, size);
-
-    const fontSize = Math.min(scale * 3.2, 48);
-
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = `italic bold ${fontSize}px cursive`;
-
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = "#00ccff";
-    ctx.fillStyle = "#fff";
-    ctx.fillText(message, w / 2, h / 2);
 
     requestAnimationFrame(pulse);
 }
 
-resize();
-window.addEventListener("resize", resize);
+// Нажатие кнопки
+button.addEventListener("click", () => {
+    if (!filling) fillHeart();
+});
 
-setTimeout(() => {
-    drawOutline();
-}, 300);
+// Изменение размера экрана
+window.addEventListener("resize", () => {
+    resize();
+
+    if (filling && fillProgress >= 1) {
+        pulseStart = performance.now();
+        requestAnimationFrame(pulse);
+    }
+});
+
+// Запуск
+resize();
+drawOutline(0);
+
 </script>
 </body>
 </html>
