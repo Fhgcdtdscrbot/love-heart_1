@@ -29,7 +29,7 @@ canvas {
 #tapButton {
     position: fixed;
     left: 50%;
-    top: 78%;
+    top: 88%;
     transform: translate(-50%, -50%);
     padding: 15px 45px;
     border: 2px solid #ff1744;
@@ -67,6 +67,7 @@ const N = 500;
 let filling = false;
 let fillProgress = 0;
 let pulseStart = 0;
+let animationStarted = false;
 
 const message = "Я люблю тебя❤️";
 
@@ -84,7 +85,6 @@ function resize() {
     scale = Math.min(w * 0.82 / 32, h * 0.48 / 30);
 
     createHeart();
-    drawStaticHeart();
 }
 
 function createHeart() {
@@ -153,21 +153,12 @@ function drawOutline(step) {
     }
 }
 
-function drawStaticHeart() {
-    if (filling) return;
-
-    clear();
-    heartPath();
-
-    ctx.strokeStyle = "#ff1744";
-    ctx.lineWidth = 5;
-    ctx.shadowColor = "#ff1744";
-    ctx.shadowBlur = 25;
-    ctx.stroke();
-}
-
 function fillHeart() {
+    if (animationStarted) return;
+
+    animationStarted = true;
     filling = true;
+
     button.style.display = "none";
     fillProgress = 0;
 
@@ -177,12 +168,9 @@ function fillHeart() {
 function animateFill() {
     clear();
 
-    // Контур сердца
     heartPath();
 
-    // Заливка жидкостью снизу вверх
     ctx.save();
-
     heartPath();
     ctx.clip();
 
@@ -190,14 +178,15 @@ function animateFill() {
     const bottom = h / 2 + 17 * scale;
     const level = bottom - (bottom - top) * fillProgress;
 
-    // Небольшая волна на поверхности жидкости
     const wave = Math.sin(performance.now() / 180) * 5;
 
     ctx.beginPath();
     ctx.moveTo(0, level);
 
     for (let x = 0; x <= w; x += 5) {
-        const y = level + Math.sin(x / 25 + performance.now() / 180) * wave;
+        const y = level +
+            Math.sin(x / 25 + performance.now() / 180) * wave;
+
         ctx.lineTo(x, y);
     }
 
@@ -216,7 +205,6 @@ function animateFill() {
 
     ctx.restore();
 
-    // Контур поверх заливки
     heartPath();
     ctx.strokeStyle = "#ff1744";
     ctx.lineWidth = 5;
@@ -225,7 +213,7 @@ function animateFill() {
     ctx.stroke();
 
     if (fillProgress < 1) {
-        fillProgress += 0.008;
+        fillProgress = Math.min(fillProgress + 0.008, 1);
         requestAnimationFrame(animateFill);
     } else {
         pulseStart = performance.now();
@@ -258,7 +246,6 @@ function pulse(now) {
 
     ctx.restore();
 
-    // Неоновая надпись
     const fontSize = Math.min(scale * 3.2, 42);
 
     ctx.textAlign = "center";
@@ -289,25 +276,30 @@ function pulse(now) {
     requestAnimationFrame(pulse);
 }
 
-// Нажатие кнопки
-button.addEventListener("click", () => {
-    if (!filling) fillHeart();
-});
+button.addEventListener("click", fillHeart);
 
-// Изменение размера экрана
 window.addEventListener("resize", () => {
     resize();
 
-    if (filling && fillProgress >= 1) {
-        pulseStart = performance.now();
-        requestAnimationFrame(pulse);
+    if (!filling) {
+        drawStaticOutline();
     }
 });
 
-// Запуск
+function drawStaticOutline() {
+    clear();
+    heartPath();
+
+    ctx.strokeStyle = "#ff1744";
+    ctx.lineWidth = 5;
+    ctx.shadowColor = "#ff1744";
+    ctx.shadowBlur = 25;
+    ctx.stroke();
+}
+
 resize();
 drawOutline(0);
 
 </script>
 </body>
-</html>
+    </html>
